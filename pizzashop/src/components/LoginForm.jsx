@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiService from '../services/apiService';
 
-const LoginForm = () => {
+const LoginForm = ({ addPopup }) => {
   const [email, setEmail] = useState('');
   const [passwort, setPasswort] = useState('');
   const [error, setError] = useState('');
@@ -13,27 +14,22 @@ const LoginForm = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password: passwort
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.user) {
-        localStorage.setItem('pizzashop_currentUser', JSON.stringify(data.user));
-        navigate('/homepage');
-      } else {
-        setError(data.error || 'Email oder Passwort ist falsch');
-      }
+      const data = await apiService.login(email, passwort);
+      
+      // Speichere User-Daten mit Token
+      const userWithToken = {
+        ...data.user,
+        token: data.token
+      };
+      
+      localStorage.setItem('pizzashop_currentUser', JSON.stringify(userWithToken));
+      addPopup('Erfolgreich angemeldet! 🎉', 'success');
+      navigate('/homepage');
     } catch (error) {
-      setError('Verbindungsfehler. Bitte versuchen Sie es später erneut.');
+      setError(error.message);
+      if (error.message.includes('Zu viele Login-Versuche')) {
+        addPopup('Zu viele Versuche. Warte 30 Sekunden! ⏳', 'error');
+      }
     } finally {
       setLoading(false);
     }

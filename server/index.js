@@ -1,13 +1,50 @@
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// JWT Secret (sollte in .env stehen)
+const JWT_SECRET = process.env.JWT_SECRET || 'dein-super-geheimer-schluessel-hier';
+
+// Rate Limiting für Login-Versuche
+const loginLimiter = rateLimit({
+  windowMs: 30 * 1000, // 30 Sekunden
+  max: 5, // Maximum 5 Versuche pro 30 Sekunden
+  message: {
+    error: 'Zu viele Login-Versuche. Bitte warte 30 Sekunden und versuche es erneut.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Nur fehlgeschlagene Versuche zählen
+  skipSuccessfulRequests: true
+});
+
 app.use(cors());
 app.use(express.json());
+
+// JWT Middleware für geschützte Routen
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Access Token erforderlich' });
+  }
+  
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Ungültiger oder abgelaufener Token' });
+    }
+    req.user = user;
+    next();
+  });
+};
 
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
@@ -43,74 +80,111 @@ db.connect((err) => {
   });
 });
 
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   
   if (!username || !email || !password) {
     return res.status(400).json({ error: 'Alle Felder sind erforderlich' });
   }
   
-  const checkQuery = 'SELECT * FROM users WHERE email = ? OR username = ?';
-  db.query(checkQuery, [email, username], (err, results) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
-    
-    if (results.length > 0) {
-      for (const user of results) {
-        if (user.email === email) {
-          return res.status(400).json({ error: 'Diese E-Mail Adresse wird bereits verwendet' });
-        }
-        if (user.username === username) {
-          return res.status(400).json({ error: 'Dieser Nutzername existiert bereits' });
-        }
-      }
-    }
-    
-    const insertQuery = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
-    db.query(insertQuery, [username, email, password], (err, results) => {
+  try {
+    // Prüfe ob Email oder Username bereits existiert
+    const checkQuery = 'SELECT * FROM users WHERE email = ? OR username = ?';
+    db.query(checkQuery, [email, username], async (err, results) => {
       if (err) {
         console.error('Database error:', err);
-        return res.status(500).json({ error: 'Fehler beim Erstellen des Kontos' });
+        return res.status(500).json({ error: 'Datenbankfehler' });
       }
       
-      res.status(201).json({ 
-        message: 'Konto erfolgreich erstellt',
-        userId: results.insertId 
+      if (results.length > 0) {
+        for (const user of results) {
+          if (user.email === email) {
+            return res.status(400).json({ error: 'Diese E-Mail Adresse wird bereits verwendet' });
+          }
+          if (user.username === username) {
+            return res.status(400).json({ error: 'Dieser Nutzername existiert bereits' });
+          }
+        }
+      }
+      
+      // Hash das Passwort
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      
+      // Speichere User mit gehashtem Passwort
+      const insertQuery = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+      db.query(insertQuery, [username, email, hashedPassword], (err, results) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: 'Fehler beim Erstellen des Kontos' });
+        }
+        
+        res.status(201).json({ 
+          message: 'Konto erfolgreich erstellt',
+          userId: results.insertId 
+        });
       });
     });
-  });
+  } catch (error) {
+    console.error('Password hashing error:', error);
+    return res.status(500).json({ error: 'Fehler beim Verarbeiten des Passworts' });
+  }
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   
   if (!email || !password) {
     return res.status(400).json({ error: 'Email und Passwort sind erforderlich' });
   }
   
-  const query = 'SELECT * FROM users WHERE email = ? AND password = ?';
-  db.query(query, [email, password], (err, results) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: 'Datenbankfehler' });
-    }
-    
-    if (results.length === 0) {
-      return res.status(401).json({ error: 'Email oder Passwort ist falsch' });
-    }
-    
-    const user = results[0];
-    res.json({
-      message: 'Anmeldung erfolgreich',
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
+  try {
+    const query = 'SELECT * FROM users WHERE email = ?';
+    db.query(query, [email], async (err, results) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Datenbankfehler' });
       }
+      
+      if (results.length === 0) {
+        return res.status(401).json({ error: 'Email oder Passwort ist falsch' });
+      }
+      
+      const user = results[0];
+      
+      // Vergleiche das eingegebene Passwort mit dem gehashten Passwort
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Email oder Passwort ist falsch' });
+      }
+      
+      // JWT Token erstellen
+      const token = jwt.sign(
+        { 
+          userId: user.id, 
+          email: user.email,
+          username: user.username 
+        },
+        JWT_SECRET,
+        { expiresIn: '1h' } // Token läuft nach 1 Stunde ab
+      );
+      
+      // Login erfolgreich
+      res.json({
+        message: 'Anmeldung erfolgreich',
+        token: token,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email
+        }
+      });
     });
-  });
+  } catch (error) {
+    console.error('Password comparison error:', error);
+    return res.status(500).json({ error: 'Fehler beim Verarbeiten der Anmeldung' });
+  }
 });
 
 app.get('/api/users', (req, res) => {
@@ -160,7 +234,7 @@ app.get('/api/ingredients', (req, res) => {
   });
 });
 
-app.post('/api/orders', (req, res) => {
+app.post('/api/orders', authenticateToken, (req, res) => {
   const { userId, items, deliveryAddress, totalPrice } = req.body;
   
   if (!userId || !items || !deliveryAddress || !totalPrice) {
@@ -203,7 +277,7 @@ app.post('/api/orders', (req, res) => {
   });
 });
 
-app.get('/api/orders/:userId', (req, res) => {
+app.get('/api/orders/:userId', authenticateToken, (req, res) => {
   const userId = req.params.userId;
   
   const query = `
@@ -241,7 +315,7 @@ app.get('/api/orders/:userId', (req, res) => {
   });
 });
 
-app.put('/api/orders/:orderId/cancel', (req, res) => {
+app.put('/api/orders/:orderId/cancel', authenticateToken, (req, res) => {
   const orderId = req.params.orderId;
   const { userId } = req.body;
   
@@ -286,7 +360,7 @@ app.put('/api/orders/:orderId/cancel', (req, res) => {
   });
 });
 
-app.delete('/api/orders/:orderId', (req, res) => {
+app.delete('/api/orders/:orderId', authenticateToken, (req, res) => {
   const orderId = req.params.orderId;
   const { userId } = req.body;
   
@@ -336,7 +410,7 @@ app.delete('/api/orders/:orderId', (req, res) => {
   });
 });
 
-app.post('/api/reviews', (req, res) => {
+app.post('/api/reviews', authenticateToken, (req, res) => {
   const { userId, rating, comment } = req.body;
   
   if (!userId || !rating || !comment) {

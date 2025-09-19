@@ -4,6 +4,7 @@ import PizzaMenu from './PizzaMenu';
 import CartView from './CartView';
 import OrderHistory from './OrderHistory';
 import Reviews from './Reviews';
+import apiService from '../services/apiService';
 
 const Homepage = ({ addPopup }) => {
   const [benutzer, setBenutzer] = useState(null);
@@ -27,16 +28,19 @@ const Homepage = ({ addPopup }) => {
       const user = JSON.parse(localStorage.getItem('pizzashop_currentUser'));
       if (!user) return;
 
-      const response = await fetch(`http://localhost:3001/api/orders/${user.id}`);
-      const data = await response.json();
+      const data = await apiService.getOrders(user.id);
       setBestellungen(data);
     } catch (error) {
       console.error('Error fetching orders:', error);
+      if (error.message.includes('Session abgelaufen')) {
+        addPopup('Session abgelaufen. Bitte melde dich erneut an.', 'error');
+      }
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('pizzashop_currentUser');
+    apiService.logout();
+    addPopup('Erfolgreich abgemeldet! 👋', 'success');
     navigate('/');
   };
 

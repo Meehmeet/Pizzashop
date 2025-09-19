@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import apiService from '../services/apiService';
 
 const OrderHistory = ({ bestellungen, addPopup, fetchBestellungen }) => {
   const [confirmDialog, setConfirmDialog] = useState({ show: false, orderId: null });
@@ -34,44 +35,26 @@ const OrderHistory = ({ bestellungen, addPopup, fetchBestellungen }) => {
 
     try {
       const user = JSON.parse(localStorage.getItem('pizzashop_currentUser'));
-      const response = await fetch(`http://localhost:3001/api/orders/${orderId}/cancel`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
-      });
-
-      if (response.ok) {
-        addPopup('Bestellung erfolgreich storniert ❌', 'success');
-        fetchBestellungen();
-      } else {
-        const error = await response.json();
-        addPopup(error.error || 'Fehler beim Stornieren der Bestellung', 'error');
-      }
+      await apiService.cancelOrder(orderId, user.id);
+      
+      addPopup('Bestellung erfolgreich storniert ❌', 'success');
+      fetchBestellungen();
     } catch (error) {
       console.error('Error cancelling order:', error);
-      addPopup('Verbindungsfehler beim Stornieren', 'error');
+      addPopup(error.message || 'Fehler beim Stornieren der Bestellung', 'error');
     }
   };
 
   const handleDeleteOrder = async (orderId) => {
     try {
       const user = JSON.parse(localStorage.getItem('pizzashop_currentUser'));
-      const response = await fetch(`http://localhost:3001/api/orders/${orderId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
-      });
-
-      if (response.ok) {
-        addPopup('Bestellung wurde gelöscht 🗑️', 'success');
-        fetchBestellungen();
-      } else {
-        const error = await response.json();
-        addPopup(error.error || 'Fehler beim Löschen der Bestellung', 'error');
-      }
+      await apiService.deleteOrder(orderId, user.id);
+      
+      addPopup('Bestellung wurde gelöscht 🗑️', 'success');
+      fetchBestellungen();
     } catch (error) {
       console.error('Error deleting order:', error);
-      addPopup('Verbindungsfehler beim Löschen', 'error');
+      addPopup(error.message || 'Fehler beim Löschen der Bestellung', 'error');
     }
   };
 

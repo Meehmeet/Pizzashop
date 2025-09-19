@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import apiService from '../services/apiService';
 
 const CartView = ({ cart, updateCart, addPopup, fetchBestellungen, setShowCart }) => {
   const [lieferAdresse, setLieferAdresse] = useState({
@@ -61,30 +62,22 @@ const CartView = ({ cart, updateCart, addPopup, fetchBestellungen, setShowCart }
         totalPrice: calculateTotal()
       };
 
-      const response = await fetch('http://localhost:3001/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
+      await apiService.createOrder(orderData);
+      
+      addPopup('Bestellung erfolgreich aufgegeben! 🍕', 'success');
+      updateCart([]);
+      setLieferAdresse({
+        strasse: '',
+        hausNummer: '',
+        PLZ: '',
+        stadt: '',
+        zusatzInfo: ''
       });
-
-      if (response.ok) {
-        addPopup('Bestellung erfolgreich aufgegeben! 🍕', 'success');
-        updateCart([]);
-        setLieferAdresse({
-          strasse: '',
-          hausNummer: '',
-          PLZ: '',
-          stadt: '',
-          zusatzInfo: ''
-        });
-        fetchBestellungen();
-        setShowCart(false);
-      } else {
-        addPopup('Fehler beim Aufgeben der Bestellung', 'error');
-      }
+      fetchBestellungen();
+      setShowCart(false);
     } catch (error) {
       console.error('Error placing order:', error);
-      addPopup('Verbindungsfehler beim Bestellen', 'error');
+      addPopup(error.message || 'Verbindungsfehler beim Bestellen', 'error');
     }
   };
 

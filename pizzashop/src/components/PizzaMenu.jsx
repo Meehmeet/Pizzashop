@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import apiService from '../services/apiService';
 
 import pizzaMargherita from '../assets/pizza_magherita.png';
 import pizzaFunghi from '../assets/pizza_funghi.png';
@@ -35,8 +36,7 @@ const PizzaMenu = ({ onAddToCart, addPopup }) => {
 
   const fetchPizzas = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/pizzas');
-      const data = await response.json();
+      const data = await apiService.getPizzas();
       setPizzas(data);
     } catch (error) {
       console.error('Error fetching pizzas:', error);
@@ -47,8 +47,7 @@ const PizzaMenu = ({ onAddToCart, addPopup }) => {
 
   const fetchZutaten = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/ingredients');
-      const data = await response.json();
+      const data = await apiService.getIngredients();
       setZutaten(data);
     } catch (error) {
       console.error('Error fetching ingredients:', error);

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiService from '../services/apiService';
 
-const RegisterForm = () => {
+const RegisterForm = ({ addPopup }) => {
   const [benutzername, setBenutzername] = useState('');
   const [email, setEmail] = useState('');
   const [passwort, setPasswort] = useState('');
@@ -9,6 +10,7 @@ const RegisterForm = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
@@ -16,32 +18,18 @@ const RegisterForm = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: benutzername,
-          email,
-          password: passwort
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.status === 201) {
-        setSuccess('Konto erfolgreich erstellt!');
-        
-        // Navigate to login after 2 seconds
-        setTimeout(() => {
-          navigate('/');
-        }, 1000);
-      } else {
-        setError(data.error || 'Ein Fehler ist aufgetreten');
-      }
+      await apiService.register(benutzername, email, passwort);
+      
+      setSuccess('Konto erfolgreich erstellt! Du wirst zur Anmeldung weitergeleitet...');
+      addPopup('Registrierung erfolgreich! 🎉', 'success');
+      
+      // Navigate to login after 2 seconds
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
     } catch (error) {
-      setError('Verbindungsfehler. Bitte versuchen Sie es später erneut.');
+      setError(error.message);
+      addPopup('Registrierung fehlgeschlagen! ❌', 'error');
     } finally {
       setLoading(false);
     }
@@ -56,11 +44,11 @@ const RegisterForm = () => {
       <div className="auth-card">
         <div className="auth-header">
           <h2>Konto erstellen</h2>
-          <p>Erstelle ein Konto und bestelle leckere Pizza</p>
+          <p>Erstelle ein neues Konto, um Pizzas zu bestellen</p>
         </div>
         <form onSubmit={handleRegister} className="auth-form">
           <div className="auth-form-group">
-            <label htmlFor="username">Nutzername:</label>
+            <label htmlFor="username">Benutzername:</label>
             <input
               type="text"
               id="username"
@@ -95,11 +83,11 @@ const RegisterForm = () => {
           {error && <div className="auth-error">{error}</div>}
           {success && <div className="auth-success">{success}</div>}
           <button type="submit" className="auth-submit" disabled={loading}>
-            {loading ? 'Registrieren...' : 'Registrieren'}
+            {loading ? 'Konto wird erstellt...' : 'Konto erstellen'}
           </button>
           <div className="auth-toggle">
             Bereits ein Konto?
-            <a onClick={handleBackToLogin} href="#">Zurück zur Anmeldung</a>
+            <a onClick={handleBackToLogin} href="#">Anmelden</a>
           </div>
         </form>
       </div>

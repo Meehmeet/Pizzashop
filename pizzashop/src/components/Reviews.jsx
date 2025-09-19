@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import apiService from '../services/apiService';
 
 const Reviews = ({ addPopup }) => {
   const [bewertungen, setBewertungen] = useState([]);
@@ -13,8 +14,7 @@ const Reviews = ({ addPopup }) => {
 
   const fetchBewertungen = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/reviews');
-      const data = await response.json();
+      const data = await apiService.getReviews();
       setBewertungen(data);
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -39,30 +39,21 @@ const Reviews = ({ addPopup }) => {
     try {
       const user = JSON.parse(localStorage.getItem('pizzashop_currentUser'));
       
-      const response = await fetch('http://localhost:3001/api/reviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          rating: neueBewertung,
-          comment: neuerKommentar
-        })
-      });
-
-      if (response.ok) {
-        addPopup('Bewertung erfolgreich abgegeben! ⭐', 'success');
-        setNeueBewertung(0);
-        setNeuerKommentar('');
-        fetchBewertungen();
-      } else {
-        const error = await response.json();
-        addPopup(error.error || 'Fehler beim Abgeben der Bewertung', 'error');
-      }
+      const reviewData = {
+        userId: user.id,
+        rating: neueBewertung,
+        comment: neuerKommentar
+      };
+      
+      await apiService.createReview(reviewData);
+      
+      addPopup('Bewertung erfolgreich abgegeben! ⭐', 'success');
+      setNeueBewertung(0);
+      setNeuerKommentar('');
+      fetchBewertungen();
     } catch (error) {
-      console.error('Error submitting review:', error);
-      addPopup('Verbindungsfehler beim Abgeben der Bewertung', 'error');
+      console.error('Error creating review:', error);
+      addPopup(error.message || 'Fehler beim Abgeben der Bewertung', 'error');
     }
   };
 
