@@ -6,11 +6,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// DB-Verbindung
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
@@ -19,7 +17,6 @@ const db = mysql.createConnection({
   database: process.env.DB_NAME,
 });
 
-// Test database connection
 db.connect((err) => {
   if (err) {
     console.error('Database connection failed:', err);
@@ -27,7 +24,6 @@ db.connect((err) => {
   }
   console.log('Connected to MySQL database');
   
-  // Create users table if it doesn't exist
   const createUsersTable = `
     CREATE TABLE IF NOT EXISTS users (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -47,8 +43,6 @@ db.connect((err) => {
   });
 });
 
-// Routes
-// Register a new user
 app.post('/api/register', (req, res) => {
   const { username, email, password } = req.body;
   
@@ -56,7 +50,6 @@ app.post('/api/register', (req, res) => {
     return res.status(400).json({ error: 'Alle Felder sind erforderlich' });
   }
   
-  // Check if user already exists
   const checkQuery = 'SELECT * FROM users WHERE email = ? OR username = ?';
   db.query(checkQuery, [email, username], (err, results) => {
     if (err) {
@@ -65,7 +58,6 @@ app.post('/api/register', (req, res) => {
     }
     
     if (results.length > 0) {
-      // Check each result for specific duplicates
       for (const user of results) {
         if (user.email === email) {
           return res.status(400).json({ error: 'Diese E-Mail Adresse wird bereits verwendet' });
@@ -76,7 +68,6 @@ app.post('/api/register', (req, res) => {
       }
     }
     
-    // Insert new user
     const insertQuery = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
     db.query(insertQuery, [username, email, password], (err, results) => {
       if (err) {
@@ -92,7 +83,6 @@ app.post('/api/register', (req, res) => {
   });
 });
 
-// Login user
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
   
@@ -123,7 +113,6 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// Get all users (for testing)
 app.get('/api/users', (req, res) => {
   const query = 'SELECT id, username, email, created_at FROM users';
   db.query(query, (err, results) => {
@@ -135,7 +124,6 @@ app.get('/api/users', (req, res) => {
   });
 });
 
-// Get all pizzas with ingredients
 app.get('/api/pizzas', (req, res) => {
   const query = `
     SELECT p.*, GROUP_CONCAT(i.name) as ingredients
@@ -152,7 +140,6 @@ app.get('/api/pizzas', (req, res) => {
       return res.status(500).json({ error: 'Datenbankfehler' });
     }
     
-    // Convert ingredients string to array
     const pizzas = results.map(pizza => ({
       ...pizza,
       ingredients: pizza.ingredients ? pizza.ingredients.split(',') : []
@@ -162,7 +149,6 @@ app.get('/api/pizzas', (req, res) => {
   });
 });
 
-// Get all ingredients
 app.get('/api/ingredients', (req, res) => {
   const query = 'SELECT * FROM ingredients ORDER BY category, name';
   db.query(query, (err, results) => {
@@ -174,7 +160,6 @@ app.get('/api/ingredients', (req, res) => {
   });
 });
 
-// Create new order
 app.post('/api/orders', (req, res) => {
   const { userId, items, deliveryAddress, totalPrice } = req.body;
   
@@ -182,7 +167,6 @@ app.post('/api/orders', (req, res) => {
     return res.status(400).json({ error: 'Alle Felder sind erforderlich' });
   }
   
-  // Insert order
   const orderQuery = 'INSERT INTO orders (user_id, total_price, delivery_address) VALUES (?, ?, ?)';
   db.query(orderQuery, [userId, totalPrice, deliveryAddress], (err, orderResult) => {
     if (err) {
@@ -195,7 +179,6 @@ app.post('/api/orders', (req, res) => {
     
     const orderId = orderResult.insertId;
     
-    // Insert order items
     const itemPromises = items.map(item => {
       return new Promise((resolve, reject) => {
         const customIngredients = item.customIngredients ? JSON.stringify(item.customIngredients) : null;
@@ -220,7 +203,6 @@ app.post('/api/orders', (req, res) => {
   });
 });
 
-// Get user orders
 app.get('/api/orders/:userId', (req, res) => {
   const userId = req.params.userId;
   
@@ -244,14 +226,12 @@ app.get('/api/orders/:userId', (req, res) => {
   db.query(query, [userId], (err, results) => {
     if (err) {
       console.error('Database error:', err);
-      // Check if tables exist
       if (err.code === 'ER_NO_SUCH_TABLE') {
         return res.status(500).json({ error: 'Tabellen nicht gefunden. Bitte führe die SQL-Befehle aus.' });
       }
       return res.status(500).json({ error: 'Datenbankfehler: ' + err.message });
     }
     
-    // Parse the items JSON
     const ordersWithItems = results.map(order => ({
       ...order,
       items: order.items ? JSON.parse(`[${order.items}]`) : []
@@ -261,7 +241,6 @@ app.get('/api/orders/:userId', (req, res) => {
   });
 });
 
-// Cancel order
 app.put('/api/orders/:orderId/cancel', (req, res) => {
   const orderId = req.params.orderId;
   const { userId } = req.body;
@@ -270,7 +249,6 @@ app.put('/api/orders/:orderId/cancel', (req, res) => {
     return res.status(400).json({ error: 'User ID ist erforderlich' });
   }
   
-  // First check if the order belongs to the user and is cancellable
   const checkQuery = 'SELECT status, user_id FROM orders WHERE id = ?';
   db.query(checkQuery, [orderId], (err, results) => {
     if (err) {
@@ -284,22 +262,18 @@ app.put('/api/orders/:orderId/cancel', (req, res) => {
     
     const order = results[0];
     
-    // Check if order belongs to user
     if (order.user_id !== userId) {
       return res.status(403).json({ error: 'Keine Berechtigung für diese Bestellung' });
     }
     
-    // Check if order can be cancelled (only pending and preparing orders)
     if (order.status === 'delivered') {
       return res.status(400).json({ error: 'Gelieferte Bestellungen können nicht storniert werden' });
     }
     
-    // Check if already cancelled (via address marker)
     if (order.delivery_address && order.delivery_address.includes('[STORNIERT]')) {
       return res.status(400).json({ error: 'Bestellung ist bereits storniert' });
     }
     
-    // Since 'cancelled' status doesn't exist in database ENUM, we'll mark it in the address
     const updateQuery = 'UPDATE orders SET delivery_address = CONCAT(delivery_address, " [STORNIERT]") WHERE id = ?';
     db.query(updateQuery, [orderId], (err) => {
       if (err) {
@@ -312,7 +286,6 @@ app.put('/api/orders/:orderId/cancel', (req, res) => {
   });
 });
 
-// Delete order (only cancelled orders)
 app.delete('/api/orders/:orderId', (req, res) => {
   const orderId = req.params.orderId;
   const { userId } = req.body;
@@ -321,7 +294,6 @@ app.delete('/api/orders/:orderId', (req, res) => {
     return res.status(400).json({ error: 'User ID ist erforderlich' });
   }
   
-  // First check if the order belongs to the user and is cancelled
   const checkQuery = 'SELECT status, user_id, delivery_address FROM orders WHERE id = ?';
   db.query(checkQuery, [orderId], (err, results) => {
     if (err) {
@@ -335,18 +307,15 @@ app.delete('/api/orders/:orderId', (req, res) => {
     
     const order = results[0];
     
-    // Check if order belongs to user
     if (order.user_id !== userId) {
       return res.status(403).json({ error: 'Keine Berechtigung für diese Bestellung' });
     }
     
-    // Check if order is cancelled (either by status or address marker)
     const isCancelled = order.status === 'cancelled' || order.delivery_address?.includes('[STORNIERT]');
     if (!isCancelled) {
       return res.status(400).json({ error: 'Nur stornierte Bestellungen können gelöscht werden' });
     }
     
-    // Delete order items first (foreign key constraint)
     const deleteItemsQuery = 'DELETE FROM order_items WHERE order_id = ?';
     db.query(deleteItemsQuery, [orderId], (err) => {
       if (err) {
@@ -354,7 +323,6 @@ app.delete('/api/orders/:orderId', (req, res) => {
         return res.status(500).json({ error: 'Fehler beim Löschen der Bestellpositionen' });
       }
       
-      // Then delete the order
       const deleteOrderQuery = 'DELETE FROM orders WHERE id = ?';
       db.query(deleteOrderQuery, [orderId], (err) => {
         if (err) {
@@ -368,7 +336,6 @@ app.delete('/api/orders/:orderId', (req, res) => {
   });
 });
 
-// Create review
 app.post('/api/reviews', (req, res) => {
   const { userId, rating, comment } = req.body;
   
@@ -394,7 +361,6 @@ app.post('/api/reviews', (req, res) => {
   });
 });
 
-// Get all reviews with usernames
 app.get('/api/reviews', (req, res) => {
   const query = `
     SELECT r.*, u.username

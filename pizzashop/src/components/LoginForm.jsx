@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [passwort, setPasswort] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ const LoginForm = () => {
         },
         body: JSON.stringify({
           email,
-          password
+          password: passwort
         })
       });
 
@@ -68,8 +68,8 @@ const LoginForm = () => {
               type="password"
               id="password"
               className="auth-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={passwort}
+              onChange={(e) => setPasswort(e.target.value)}
               required
             />
           </div>

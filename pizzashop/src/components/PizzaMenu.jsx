@@ -18,9 +18,9 @@ const pizzaImages = {
 
 const PizzaMenu = ({ onAddToCart, addPopup }) => {
   const [pizzas, setPizzas] = useState([]);
-  const [ingredients, setIngredients] = useState([]);
+  const [zutaten, setZutaten] = useState([]);
   const [showCustomPizza, setShowCustomPizza] = useState(false);
-  const [selectedIngredients, setSelectedIngredients] = useState([]);
+  const [gewählteZutaten, setGewählteZutaten] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const getPizzaImage = (pizzaName) => {
@@ -30,7 +30,7 @@ const PizzaMenu = ({ onAddToCart, addPopup }) => {
 
   useEffect(() => {
     fetchPizzas();
-    fetchIngredients();
+    fetchZutaten();
   }, []);
 
   const fetchPizzas = async () => {
@@ -45,42 +45,42 @@ const PizzaMenu = ({ onAddToCart, addPopup }) => {
     }
   };
 
-  const fetchIngredients = async () => {
+  const fetchZutaten = async () => {
     try {
       const response = await fetch('http://localhost:3001/api/ingredients');
       const data = await response.json();
-      setIngredients(data);
+      setZutaten(data);
     } catch (error) {
       console.error('Error fetching ingredients:', error);
     }
   };
 
-  const handleIngredientToggle = (ingredient) => {
-    setSelectedIngredients(prev => {
-      const exists = prev.find(ing => ing.id === ingredient.id);
+  const handleZutatenToggle = (zutat) => {
+    setGewählteZutaten(prev => {
+      const exists = prev.find(ing => ing.id === zutat.id);
       if (exists) {
-        return prev.filter(ing => ing.id !== ingredient.id);
+        return prev.filter(ing => ing.id !== zutat.id);
       } else {
-        return [...prev, ingredient];
+        return [...prev, zutat];
       }
     });
   };
 
   const calculateCustomPrice = () => {
     const basePrice = 7.00;
-    const ingredientPrice = selectedIngredients.reduce((sum, ing) => sum + parseFloat(ing.price || 0), 0);
-    return basePrice + ingredientPrice;
+    const zutatenPreis = gewählteZutaten.reduce((sum, ing) => sum + parseFloat(ing.price || 0), 0);
+    return basePrice + zutatenPreis;
   };
 
   const handleOrderPizza = (pizza) => {
-    if (pizza.name === 'Custom Pizza' && selectedIngredients.length === 0) {
+    if (pizza.name === 'Custom Pizza' && gewählteZutaten.length === 0) {
       addPopup('Bitte wähle mindestens eine Zutat für deine Custom Pizza!', 'error');
       return;
     }
     
     const orderItem = {
       pizza,
-      customIngredients: pizza.name === 'Custom Pizza' ? selectedIngredients : null,
+      customIngredients: pizza.name === 'Custom Pizza' ? gewählteZutaten : null,
       price: pizza.name === 'Custom Pizza' ? calculateCustomPrice() : parseFloat(pizza.base_price || 0),
       quantity: 1
     };
@@ -89,7 +89,7 @@ const PizzaMenu = ({ onAddToCart, addPopup }) => {
     
     if (pizza.name === 'Custom Pizza') {
       addPopup(`Deine Custom Pizza wurde zum Warenkorb hinzugefügt! 🍕`, 'success');
-      setSelectedIngredients([]);
+      setGewählteZutaten([]);
       setShowCustomPizza(false);
     } else {
       addPopup(`${pizza.name} wurde zum Warenkorb hinzugefügt! 🍕`, 'success');
@@ -162,19 +162,19 @@ const PizzaMenu = ({ onAddToCart, addPopup }) => {
                         category === 'vegetable' ? 'Gemüse' : 'Sonstiges'}</h4>
                   
                   <div className="ingredients-grid">
-                    {ingredients
-                      .filter(ing => ing.category === category)
-                      .map(ingredient => (
-                        <label key={ingredient.id} className="ingredient-item">
+                    {zutaten
+                      .filter(zutat => zutat.category === category)
+                      .map(zutat => (
+                        <label key={zutat.id} className="ingredient-item">
                           <input
                             type="checkbox"
                             className="ingredient-checkbox"
-                            checked={selectedIngredients.some(ing => ing.id === ingredient.id)}
-                            onChange={() => handleIngredientToggle(ingredient)}
+                            checked={gewählteZutaten.some(ing => ing.id === zutat.id)}
+                            onChange={() => handleZutatenToggle(zutat)}
                           />
-                          <span>{ingredient.name}</span>
-                          {parseFloat(ingredient.price || 0) > 0 && (
-                            <span className="ingredient-price">+{parseFloat(ingredient.price || 0).toFixed(2)}€</span>
+                          <span>{zutat.name}</span>
+                          {parseFloat(zutat.price || 0) > 0 && (
+                            <span className="ingredient-price">+{parseFloat(zutat.price || 0).toFixed(2)}€</span>
                           )}
                         </label>
                     ))}
@@ -192,7 +192,7 @@ const PizzaMenu = ({ onAddToCart, addPopup }) => {
                 className="modal-cancel"
                 onClick={() => {
                   setShowCustomPizza(false);
-                  setSelectedIngredients([]);
+                  setGewählteZutaten([]);
                 }}
               >
                 Abbrechen
@@ -204,7 +204,7 @@ const PizzaMenu = ({ onAddToCart, addPopup }) => {
                   name: 'Custom Pizza', 
                   base_price: 7.00 
                 })}
-                disabled={selectedIngredients.length === 0}
+                disabled={gewählteZutaten.length === 0}
               >
                 Pizza bestellen ({calculateCustomPrice().toFixed(2)}€)
               </button>

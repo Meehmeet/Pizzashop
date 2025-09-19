@@ -9,7 +9,7 @@ function App() {
   const [popups, setPopups] = useState([]);
   
   const addPopup = (message, type = 'success') => {
-    const id = Date.now() + Math.random();
+    const id = Math.random();
     const newPopup = { id, message, type };
     setPopups(prev => [...prev, newPopup]);
   };

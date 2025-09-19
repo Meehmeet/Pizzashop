@@ -1,36 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-const Popup = ({ message, type = 'success', onClose }) => {
-  const [isVisible, setIsVisible] = useState(false);
+const Popup = ({ nachricht, typ = 'success', onClose }) => {
+  const [istSichtbar, setIstSichtbar] = useState(false);
 
   useEffect(() => {
     // Animation beim Einblenden
-    setIsVisible(true);
+    setIstSichtbar(true);
     
     // Automatisches Schließen nach 3 Sekunden
     const timer = setTimeout(() => {
-      handleClose();
+      handleSchließen();
     }, 3000);
 
     return () => clearTimeout(timer);
   }, []);
 
-  const handleClose = () => {
-    setIsVisible(false);
+  const handleSchließen = () => {
+    setIstSichtbar(false);
     setTimeout(onClose, 300); // Warten bis Animation fertig ist
+  };
+
+  const getIcon = (typ) => {
+    const iconMap = {
+      'success': '✅',
+      'error': '❌',
+      'warning': '⚠️',
+      'info': 'ℹ️'
+    };
+    return iconMap[typ] || 'ℹ️';
   };
 
   return (
     <div 
-      className={`popup popup-${type} ${isVisible ? 'popup-show' : 'popup-hide'}`}
+      className={`popup popup-${typ} ${istSichtbar ? 'popup-show' : 'popup-hide'}`}
     >
       <div className="popup-content">
         <span className="popup-icon">
-          {type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}
+          {getIcon(typ)}
         </span>
-        <span className="popup-message">{message}</span>
-        <button className="popup-close" onClick={handleClose}>×</button>
+        <span className="popup-message">{nachricht}</span>
+        <button 
+          className="popup-close" 
+          onClick={handleSchließen}
+          aria-label="Popup schließen"
+        >
+          ×
+        </button>
       </div>
     </div>
   );
@@ -43,13 +59,13 @@ const PopupContainer = ({ popups, removePopup }) => {
       {popups.map(popup => (
         <Popup
           key={popup.id}
-          message={popup.message}
-          type={popup.type}
+          nachricht={popup.message}
+          typ={popup.type}
           onClose={() => removePopup(popup.id)}
         />
       ))}
     </div>,
-    document.body // Rendert direkt am body-Element
+    document.body // Rendert direkt am body-Element für bessere Z-Index-Kontrolle
   );
 };
 

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const RegisterForm = () => {
-  const [username, setUsername] = useState('');
+  const [benutzername, setBenutzername] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [passwort, setPasswort] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,9 +22,9 @@ const RegisterForm = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username,
+          username: benutzername,
           email,
-          password
+          password: passwort
         })
       });
 
@@ -65,8 +65,8 @@ const RegisterForm = () => {
               type="text"
               id="username"
               className="auth-input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={benutzername}
+              onChange={(e) => setBenutzername(e.target.value)}
               required
             />
           </div>
@@ -87,8 +87,8 @@ const RegisterForm = () => {
               type="password"
               id="password"
               className="auth-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={passwort}
+              onChange={(e) => setPasswort(e.target.value)}
               required
             />
           </div>
