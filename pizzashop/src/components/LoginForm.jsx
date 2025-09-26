@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../services/apiService';
+// Frontend-Validierung für sofortiges User-Feedback (arbeitet mit Backend zusammen)
+import { validateLogin, ERROR_CODES, STATUS_CODES } from '../utils/validation';
 
 const LoginForm = ({ addPopup }) => {
   const [email, setEmail] = useState('');
@@ -13,7 +15,17 @@ const LoginForm = ({ addPopup }) => {
     setError('');
     setLoading(true);
 
+    // Frontend-Validierung: Basis-Check OHNE Server (E-Mail Format, Felder vorhanden)
+    // Backend macht später die echte Passwort-Prüfung mit Datenbank
+    const validation = validateLogin({ email, password: passwort });
+    if (!validation.valid) {
+      setError(validation.error);
+      setLoading(false);
+      return;
+    }
+
     try {
+      // Server-Anfrage: Backend prüft Passwort, erstellt JWT-Token
       const data = await apiService.login(email, passwort);
       
       // Speichere User-Daten mit Token
@@ -26,9 +38,18 @@ const LoginForm = ({ addPopup }) => {
       addPopup('Erfolgreich angemeldet! 🎉', 'success');
       navigate('/homepage');
     } catch (error) {
-      setError(error.message);
-      if (error.message.includes('Zu viele Login-Versuche')) {
+      console.error('Login Error:', error);
+      
+      // Behandle verschiedene Fehlercodes
+      if (error.errorCode === ERROR_CODES.TOO_MANY_REQUESTS) {
+        setError('Zu viele Login-Versuche. Bitte warte 30 Sekunden.');
         addPopup('Zu viele Versuche. Warte 30 Sekunden! ⏳', 'error');
+      } else if (error.errorCode === ERROR_CODES.INVALID_CREDENTIALS) {
+        setError('E-Mail oder Passwort ist falsch.');
+      } else if (error.errorCode === ERROR_CODES.INVALID_EMAIL) {
+        setError('Ungültige E-Mail Adresse.');
+      } else {
+        setError(error.message || 'Anmeldung fehlgeschlagen');
       }
     } finally {
       setLoading(false);

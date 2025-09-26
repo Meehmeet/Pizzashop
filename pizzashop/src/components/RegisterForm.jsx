@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../services/apiService';
+// Frontend-Validierung für sofortiges User-Feedback (arbeitet mit Backend zusammen)
+import { validateRegistration, ERROR_CODES, STATUS_CODES } from '../utils/validation';
 
 const RegisterForm = ({ addPopup }) => {
   const [benutzername, setBenutzername] = useState('');
@@ -17,7 +19,21 @@ const RegisterForm = ({ addPopup }) => {
     setSuccess('');
     setLoading(true);
 
+    // Frontend-Validierung: Sofortige Prüfung OHNE Server-Anfrage
+    // User bekommt schnelles Feedback, Backend macht später Sicherheitsprüfung
+    const validation = validateRegistration({ 
+      username: benutzername, 
+      email, 
+      password: passwort 
+    });
+    if (!validation.valid) {
+      setError(validation.error);
+      setLoading(false);
+      return;
+    }
+
     try {
+      // Server-Anfrage: Backend macht nochmal SICHERHEITSPRÜFUNG + speichert in DB
       await apiService.register(benutzername, email, passwort);
       
       setSuccess('Konto erfolgreich erstellt! Du wirst zur Anmeldung weitergeleitet...');
@@ -28,7 +44,23 @@ const RegisterForm = ({ addPopup }) => {
         navigate('/');
       }, 2000);
     } catch (error) {
-      setError(error.message);
+      console.error('Registration Error:', error);
+      
+      // Behandle verschiedene Fehlercodes
+      if (error.errorCode === ERROR_CODES.EMAIL_EXISTS) {
+        setError('Diese E-Mail Adresse wird bereits verwendet.');
+      } else if (error.errorCode === ERROR_CODES.USERNAME_EXISTS) {
+        setError('Dieser Benutzername existiert bereits.');
+      } else if (error.errorCode === ERROR_CODES.INVALID_EMAIL) {
+        setError('Ungültige E-Mail Adresse.');
+      } else if (error.errorCode === ERROR_CODES.INVALID_PASSWORD) {
+        setError('Passwort entspricht nicht den Anforderungen.');
+      } else if (error.errorCode === ERROR_CODES.INVALID_USERNAME) {
+        setError('Benutzername entspricht nicht den Anforderungen.');
+      } else {
+        setError(error.message || 'Registrierung fehlgeschlagen');
+      }
+      
       addPopup('Registrierung fehlgeschlagen! ❌', 'error');
     } finally {
       setLoading(false);

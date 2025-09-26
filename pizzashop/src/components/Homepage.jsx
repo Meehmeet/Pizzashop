@@ -79,7 +79,7 @@ const Homepage = ({ addPopup }) => {
           🍕 Pizza bestellen
         </button>
         <button className={`nav-button ${activeTab === 'cart' ? 'active' : ''}`} onClick={() => setActiveTab('cart')}>
-          � Warenkorb {warenkorb.length > 0 && `(${warenkorb.length})`}
+          🛒 Warenkorb {warenkorb.length > 0 && `(${warenkorb.length})`}
         </button>
         <button className={`nav-button ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>
           📋 Bestellungen
