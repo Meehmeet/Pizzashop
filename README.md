@@ -45,7 +45,6 @@ DB_NAME=pizzashop
 ```
 ├── pizzashop/          # React Frontend
 │   ├── src/
-│   └── package.json
 ├── server/             # Node.js Backend
 │   ├── index.js
 │   ├── pizzashop.sql   # Datenbank-Dump
