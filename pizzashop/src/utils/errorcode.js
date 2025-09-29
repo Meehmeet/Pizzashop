@@ -1,0 +1,28 @@
+// ===== KONSTANTEN FÜR FRONTEND =====
+// Diese müssen mit Backend-Konstanten synchron bleiben!
+
+// Fehlercodes für Frontend (identisch mit Backend)
+export const ERROR_CODES = {
+    INVALID_EMAIL: 'INVALID_EMAIL',
+    INVALID_PASSWORD: 'INVALID_PASSWORD',
+    INVALID_USERNAME: 'INVALID_USERNAME',
+    MISSING_FIELDS: 'MISSING_FIELDS',
+    TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
+    INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+    EMAIL_EXISTS: 'EMAIL_EXISTS',
+    USERNAME_EXISTS: 'USERNAME_EXISTS'
+};
+
+// HTTP Status Codes (identisch mit Backend)
+export const STATUS_CODES = {
+    OK: 200,
+    CREATED: 201,
+    BAD_REQUEST: 400,
+    UNAUTHORIZED: 401,
+    FORBIDDEN: 403,
+    NOT_FOUND: 404,
+    CONFLICT: 409,
+    UNPROCESSABLE_ENTITY: 422,
+    TOO_MANY_REQUESTS: 429,
+    INTERNAL_SERVER_ERROR: 500
+};
