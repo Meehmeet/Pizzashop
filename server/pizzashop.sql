@@ -61,7 +61,7 @@ CREATE TABLE `order_items` (
   KEY `pizza_id` (`pizza_id`),
   CONSTRAINT `order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`pizza_id`) REFERENCES `pizzas` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=40 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -70,7 +70,7 @@ CREATE TABLE `order_items` (
 
 LOCK TABLES `order_items` WRITE;
 /*!40000 ALTER TABLE `order_items` DISABLE KEYS */;
-INSERT INTO `order_items` VALUES (27,10,NULL,'{\"selectedIngredients\":[],\"type\":\"custom_pizza\",\"pizza_name\":\"Custom Pizza\"}',2,8.50),(28,10,NULL,'{\"selectedIngredients\":[],\"type\":\"custom_pizza\",\"pizza_name\":\"Custom Pizza\"}',4,9.50),(29,11,NULL,'{\"selectedIngredients\":[],\"type\":\"custom_pizza\",\"pizza_name\":\"Custom Pizza\"}',1,8.50),(30,12,NULL,'{\"selectedIngredients\":[],\"type\":\"custom_pizza\",\"pizza_name\":\"Custom Pizza\"}',1,8.50),(31,13,NULL,'{\"pizza_name\":\"Pizza Margherita\",\"type\":\"regular_pizza\"}',1,8.50),(32,13,NULL,'{\"pizza_name\":\"Pizza Funghi\",\"type\":\"regular_pizza\"}',1,9.50),(33,13,NULL,'{\"pizza_name\":\"Pizza Hawaii\",\"type\":\"regular_pizza\"}',1,10.50);
+INSERT INTO `order_items` VALUES (27,10,NULL,'{\"selectedIngredients\":[],\"type\":\"custom_pizza\",\"pizza_name\":\"Custom Pizza\"}',2,8.50),(28,10,NULL,'{\"selectedIngredients\":[],\"type\":\"custom_pizza\",\"pizza_name\":\"Custom Pizza\"}',4,9.50),(29,11,NULL,'{\"selectedIngredients\":[],\"type\":\"custom_pizza\",\"pizza_name\":\"Custom Pizza\"}',1,8.50),(30,12,NULL,'{\"selectedIngredients\":[],\"type\":\"custom_pizza\",\"pizza_name\":\"Custom Pizza\"}',1,8.50),(31,13,NULL,'{\"pizza_name\":\"Pizza Margherita\",\"type\":\"regular_pizza\"}',1,8.50),(32,13,NULL,'{\"pizza_name\":\"Pizza Funghi\",\"type\":\"regular_pizza\"}',1,9.50),(33,13,NULL,'{\"pizza_name\":\"Pizza Hawaii\",\"type\":\"regular_pizza\"}',1,10.50),(34,14,NULL,'{\"pizza_name\":\"Pizza Margherita\",\"type\":\"regular_pizza\"}',2,8.50),(35,14,NULL,'{\"pizza_name\":\"Pizza Döner\",\"type\":\"regular_pizza\"}',1,12.00),(36,14,NULL,'{\"selectedIngredients\":[{\"id\":5,\"name\":\"Gouda\",\"price\":0.5,\"preis\":0.5,\"category\":\"cheese\"},{\"id\":8,\"name\":\"Schinken\",\"price\":1.5,\"preis\":1.5,\"category\":\"meat\"},{\"id\":7,\"name\":\"Salami\",\"price\":1.5,\"preis\":1.5,\"category\":\"meat\"}],\"type\":\"custom_pizza\",\"pizza_name\":\"Custom Pizza\"}',1,10.50);
 /*!40000 ALTER TABLE `order_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -85,13 +85,17 @@ CREATE TABLE `orders` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` int DEFAULT NULL,
   `total_price` decimal(10,2) NOT NULL,
-  `status` enum('pending','preparing','ready','delivered') DEFAULT 'pending',
+  `status` enum('pending','accepted','preparing','ready','delivered','rejected') DEFAULT 'pending',
   `delivery_address` text,
   `order_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `rejection_reason` text,
+  `status_updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
+  KEY `idx_orders_status` (`status`),
+  KEY `idx_orders_date` (`order_date`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -100,7 +104,7 @@ CREATE TABLE `orders` (
 
 LOCK TABLES `orders` WRITE;
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
-INSERT INTO `orders` VALUES (10,11,55.00,'pending','Hohenems 123, 123 Hohenems, hohenems [STORNIERT]','2025-09-25 13:39:10'),(11,11,8.50,'pending','Hohenems 123, 6850 Hohenems, Hohenems [STORNIERT]','2025-09-25 13:52:25'),(12,11,8.50,'pending','o o, oo o, o [STORNIERT]','2025-09-25 13:56:31'),(13,11,28.50,'pending','j j, j j, j','2025-09-25 14:05:16');
+INSERT INTO `orders` VALUES (10,11,55.00,'pending','Hohenems 123, 123 Hohenems, hohenems [STORNIERT]','2025-09-25 13:39:10',NULL,NULL),(11,11,8.50,'pending','Hohenems 123, 6850 Hohenems, Hohenems [STORNIERT]','2025-09-25 13:52:25',NULL,NULL),(12,11,8.50,'pending','o o, oo o, o [STORNIERT]','2025-09-25 13:56:31',NULL,NULL),(13,11,28.50,'pending','j j, j j, j','2025-09-25 14:05:16',NULL,NULL),(14,12,39.50,'pending','Hohenems Hohenems, HOhensm hohenems, hohenems','2025-10-02 13:33:56',NULL,NULL);
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -179,7 +183,7 @@ CREATE TABLE `reviews` (
   KEY `user_id` (`user_id`),
   CONSTRAINT `reviews_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `reviews_chk_1` CHECK (((`rating` >= 1) and (`rating` <= 5)))
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -188,7 +192,7 @@ CREATE TABLE `reviews` (
 
 LOCK TABLES `reviews` WRITE;
 /*!40000 ALTER TABLE `reviews` DISABLE KEYS */;
-INSERT INTO `reviews` VALUES (3,11,2,'super','2025-09-25 12:57:36');
+INSERT INTO `reviews` VALUES (3,11,2,'super','2025-09-25 12:57:36'),(4,12,4,'süper','2025-10-02 13:34:17');
 /*!40000 ALTER TABLE `reviews` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -207,8 +211,10 @@ CREATE TABLE `users` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username` (`username`),
-  UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `email` (`email`),
+  KEY `idx_users_created` (`created_at`),
+  KEY `idx_users_email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -217,7 +223,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (11,'Lukas_Schuler','lukasschuler@gmail.com','$2b$10$ul951UUUdARnU7rXVvTnv.19x7XkUu./bv5AfLb8U653euknSqI.u','2025-09-25 12:17:16');
+INSERT INTO `users` VALUES (11,'Lukas_Schuler','lukasschuler@gmail.com','$2b$10$ul951UUUdARnU7rXVvTnv.19x7XkUu./bv5AfLb8U653euknSqI.u','2025-09-25 12:17:16'),(12,'Hallo','Hallo@gmail.com','$2b$10$Gt/VpofeLZfuGWHDW.eJlu.khClzzcWnBAIjbQJYpi6EScqL5Lv3i','2025-10-02 13:33:17'),(13,'root','root@gmail.com','$2b$10$XtTyXWDxgPHaZq8nbfq2nuBK0nlkG.q5236h5/RokekJgjabw/nIe','2025-10-03 10:51:31'),(14,'hallo2','hallo2@gmail.com','$2b$10$y4F9/4B77tRfzefjOpS8Xuo.pKGFRGS766A01.Vbik0paMG3.mhKy','2025-10-03 10:53:51');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -234,4 +240,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-29  9:13:38
+-- Dump completed on 2025-10-03 13:27:11

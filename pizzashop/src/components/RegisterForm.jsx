@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../services/apiService';
 // Frontend-Validierung für sofortiges User-Feedback (arbeitet mit Backend zusammen)
-import { validateRegistration, ERROR_CODES, STATUS_CODES } from '../utils/validation';
+import { validateRegistration } from '../utils/validation';
+import { ERROR_CODES, STATUS_CODES } from '../utils/errorcode';
 
 const RegisterForm = ({ addPopup }) => {
   const [benutzername, setBenutzername] = useState('');

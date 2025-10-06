@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiService from '../services/apiService';
 // Frontend-Validierung für sofortiges User-Feedback (arbeitet mit Backend zusammen)
-import { validateLogin, ERROR_CODES, STATUS_CODES } from '../utils/validation';
+import { validateLogin } from '../utils/validation';
+import { ERROR_CODES, STATUS_CODES } from '../utils/errorcode';
 
 const LoginForm = ({ addPopup }) => {
   const [email, setEmail] = useState('');
@@ -28,13 +29,27 @@ const LoginForm = ({ addPopup }) => {
       // Server-Anfrage: Backend prüft Passwort, erstellt JWT-Token
       const data = await apiService.login(email, passwort);
       
-      // Speichere User-Daten mit Token
+      // Speichere User-Daten mit Token (für alle User)
       const userWithToken = {
         ...data.user,
+        email: email, // E-Mail explizit hinzufügen
         token: data.token
       };
       
       localStorage.setItem('pizzashop_currentUser', JSON.stringify(userWithToken));
+      
+      // Prüfe ob es sich um den Admin handelt
+      if (email === 'root@gmail.com') {
+        // Leite zur Admin-Seite weiter
+        addPopup('Admin erfolgreich angemeldet! 🔐', 'success');
+        // Öffne Admin-Panel und schließe normales Frontend
+        setTimeout(() => {
+          window.open('http://localhost:5174', '_blank');
+          window.close(); // Schließe das normale Frontend
+        }, 1000);
+        return;
+      }
+      
       addPopup('Erfolgreich angemeldet! 🎉', 'success');
       navigate('/homepage');
     } catch (error) {

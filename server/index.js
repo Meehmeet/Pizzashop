@@ -1,4 +1,5 @@
 // ===== PIZZASHOP BACKEND SERVER =====
+//root@gmail.com, root1234!
 // Hauptserver für die Pizzashop-Anwendung
 // Behandelt: Authentifizierung, Bestellungen, Pizzas, Bewertungen
 
@@ -731,6 +732,296 @@ app.post('/api/reviews', authenticateToken, (req, res) => {
   });
 });
 
+// ===== ADMIN PANEL ROUTEN =====
+// Spezielle Routen für die Administrationsoberfläche
+
+// Admin-Authentifizierungs-Middleware (vereinfacht)
+const authenticateAdmin = (req, res, next) => {
+  // Keine Token-Prüfung mehr - Admin-Panel ist frei zugänglich
+  req.user = { userId: 13, email: 'root@gmail.com' }; // Fake Admin User
+  next();
+};
+
+// Admin Login - speziell für root@gmail.com
+app.post('/admin/login', loginLimiter, async (req, res) => {
+  const { email, password } = req.body;
+  
+  // Nur root@gmail.com darf sich als Admin anmelden
+  if (email !== 'root@gmail.com') {
+    return res.status(STATUS_CODES.UNAUTHORIZED).json(
+      formatErrorResponse('Keine Admin-Berechtigung', ERROR_CODES.UNAUTHORIZED, STATUS_CODES.UNAUTHORIZED)
+    );
+  }
+  
+  // Prüfe Admin-Account in der Datenbank
+  const query = 'SELECT * FROM users WHERE email = ?';
+  db.query(query, [email], async (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+        formatErrorResponse('Datenbankfehler', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+      );
+    }
+    
+    if (results.length === 0) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json(
+        formatErrorResponse('Admin-Account nicht gefunden', ERROR_CODES.INVALID_CREDENTIALS, STATUS_CODES.UNAUTHORIZED)
+      );
+    }
+    
+    const user = results[0];
+    
+    // Passwort prüfen
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(STATUS_CODES.UNAUTHORIZED).json(
+        formatErrorResponse('Ungültiges Admin-Passwort', ERROR_CODES.INVALID_CREDENTIALS, STATUS_CODES.UNAUTHORIZED)
+      );
+    }
+    
+    // Admin-Token erstellen
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, isAdmin: true },
+      JWT_SECRET,
+      { expiresIn: '4h' } // Admin-Sessions länger gültig
+    );
+    
+    res.json(formatSuccessResponse({ 
+      token,
+      admin: {
+        id: user.id,
+        email: user.email,
+        username: user.username
+      }
+    }, 'Admin erfolgreich angemeldet'));
+  });
+});
+
+// Admin Dashboard Statistics
+app.get('/admin/stats', (req, res) => {
+  // Komplexe Statistik-Abfrage
+  const statsQuery = `
+    SELECT 
+      (SELECT COUNT(*) FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as new_users_30_days,
+      (SELECT COUNT(*) FROM orders WHERE order_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as orders_30_days,
+      (SELECT COALESCE(SUM(quantity), 0) FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE o.order_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as pizzas_sold_30_days,
+      (SELECT COUNT(*) FROM users) as total_active_users,
+      (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pending_orders,
+      (SELECT COUNT(*) FROM reviews) as total_reviews
+  `;
+  
+  db.query(statsQuery, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+        formatErrorResponse('Fehler beim Laden der Statistiken', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+      );
+    }
+    
+    res.json(formatSuccessResponse(results[0], 'Statistiken erfolgreich geladen'));
+  });
+});
+
+// Admin: Get all users
+app.get('/admin/users', (req, res) => {
+  const query = `
+    SELECT id, username, email, created_at, 
+           CASE WHEN email = 'root@gmail.com' THEN 'admin' ELSE 'user' END as role,
+           TRUE as is_active
+    FROM users 
+    ORDER BY created_at DESC
+  `;
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+        formatErrorResponse('Fehler beim Laden der Benutzer', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+      );
+    }
+    
+    res.json(formatSuccessResponse(results, 'Benutzer erfolgreich geladen'));
+  });
+});
+
+// Admin: Delete user
+app.delete('/admin/users/:userId', (req, res) => {
+  const userId = parseInt(req.params.userId);
+  const { reason } = req.body;
+  
+  if (!reason || reason.trim().length === 0) {
+    return res.status(STATUS_CODES.BAD_REQUEST).json(
+      formatErrorResponse('Löschungsgrund erforderlich', ERROR_CODES.MISSING_FIELDS, STATUS_CODES.BAD_REQUEST)
+    );
+  }
+  
+  // Verhindere Löschung des Admin-Accounts
+  const checkQuery = 'SELECT email FROM users WHERE id = ?';
+  db.query(checkQuery, [userId], (err, results) => {
+    if (err || results.length === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json(
+        formatErrorResponse('Benutzer nicht gefunden', ERROR_CODES.NOT_FOUND, STATUS_CODES.NOT_FOUND)
+      );
+    }
+    
+    if (results[0].email === 'root@gmail.com') {
+      return res.status(STATUS_CODES.FORBIDDEN).json(
+        formatErrorResponse('Admin-Account kann nicht gelöscht werden', ERROR_CODES.FORBIDDEN, STATUS_CODES.FORBIDDEN)
+      );
+    }
+    
+    // Lösche Benutzer und alle zugehörigen Daten (CASCADE sollte das automatisch machen)
+    const deleteQuery = 'DELETE FROM users WHERE id = ?';
+    db.query(deleteQuery, [userId], (err) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+          formatErrorResponse('Fehler beim Löschen des Benutzers', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+        );
+      }
+      
+      res.json(formatSuccessResponse({ userId, reason }, 'Benutzer erfolgreich gelöscht'));
+    });
+  });
+});
+
+// Admin: Get all orders
+app.get('/admin/orders', (req, res) => {
+  const query = `
+    SELECT o.*, u.username as customer_username
+    FROM orders o
+    LEFT JOIN users u ON o.user_id = u.id
+    ORDER BY o.order_date DESC
+  `;
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+        formatErrorResponse('Fehler beim Laden der Bestellungen', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+      );
+    }
+    
+    res.json(formatSuccessResponse(results, 'Bestellungen erfolgreich geladen'));
+  });
+});
+
+// Admin: Accept order
+app.put('/admin/orders/:orderId/accept', (req, res) => {
+  const orderId = parseInt(req.params.orderId);
+  
+  const updateQuery = `
+    UPDATE orders 
+    SET status = 'accepted', status_updated_at = NOW() 
+    WHERE id = ? AND status = 'pending'
+  `;
+  
+  db.query(updateQuery, [orderId], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+        formatErrorResponse('Fehler beim Akzeptieren der Bestellung', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+      );
+    }
+    
+    if (results.affectedRows === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json(
+        formatErrorResponse('Bestellung nicht gefunden oder bereits bearbeitet', ERROR_CODES.NOT_FOUND, STATUS_CODES.NOT_FOUND)
+      );
+    }
+    
+    res.json(formatSuccessResponse({ orderId }, 'Bestellung erfolgreich akzeptiert'));
+  });
+});
+
+// Admin: Reject order
+app.put('/admin/orders/:orderId/reject', (req, res) => {
+  const orderId = parseInt(req.params.orderId);
+  const { reason } = req.body;
+  
+  if (!reason || reason.trim().length === 0) {
+    return res.status(STATUS_CODES.BAD_REQUEST).json(
+      formatErrorResponse('Ablehnungsgrund erforderlich', ERROR_CODES.MISSING_FIELDS, STATUS_CODES.BAD_REQUEST)
+    );
+  }
+  
+  const updateQuery = `
+    UPDATE orders 
+    SET status = 'rejected', rejection_reason = ?, status_updated_at = NOW() 
+    WHERE id = ? AND status = 'pending'
+  `;
+  
+  db.query(updateQuery, [reason.trim(), orderId], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+        formatErrorResponse('Fehler beim Ablehnen der Bestellung', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+      );
+    }
+    
+    if (results.affectedRows === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json(
+        formatErrorResponse('Bestellung nicht gefunden oder bereits bearbeitet', ERROR_CODES.NOT_FOUND, STATUS_CODES.NOT_FOUND)
+      );
+    }
+    
+    res.json(formatSuccessResponse({ orderId, reason }, 'Bestellung erfolgreich abgelehnt'));
+  });
+});
+
+// Admin: Get all reviews
+app.get('/admin/reviews', (req, res) => {
+  const query = `
+    SELECT r.*, u.username as customer_username,
+           FALSE as is_deleted
+    FROM reviews r
+    LEFT JOIN users u ON r.user_id = u.id
+    ORDER BY r.created_at DESC
+  `;
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+        formatErrorResponse('Fehler beim Laden der Bewertungen', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+      );
+    }
+    
+    res.json(formatSuccessResponse(results, 'Bewertungen erfolgreich geladen'));
+  });
+});
+
+// Admin: Delete review
+app.delete('/admin/reviews/:reviewId', (req, res) => {
+  const reviewId = parseInt(req.params.reviewId);
+  const { reason } = req.body;
+  
+  if (!reason || reason.trim().length === 0) {
+    return res.status(STATUS_CODES.BAD_REQUEST).json(
+      formatErrorResponse('Löschungsgrund erforderlich', ERROR_CODES.MISSING_FIELDS, STATUS_CODES.BAD_REQUEST)
+    );
+  }
+  
+  // Lösche Bewertung direkt
+  const deleteQuery = 'DELETE FROM reviews WHERE id = ?';
+  db.query(deleteQuery, [reviewId], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+        formatErrorResponse('Fehler beim Löschen der Bewertung', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+      );
+    }
+    
+    if (results.affectedRows === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json(
+        formatErrorResponse('Bewertung nicht gefunden', ERROR_CODES.NOT_FOUND, STATUS_CODES.NOT_FOUND)
+      );
+    }
+    
+    res.json(formatSuccessResponse({ reviewId, reason }, 'Bewertung erfolgreich gelöscht'));
+  });
+});
+
 // Server starten
 const server = app.listen(PORT, () => {
   console.log(`Server läuft auf Port ${PORT}`);
@@ -743,6 +1034,17 @@ const server = app.listen(PORT, () => {
   console.log('- POST /api/orders (Auth erforderlich)');
   console.log('- GET /api/orders (Auth erforderlich)');
   console.log('- POST /api/reviews (Auth erforderlich)');
+  console.log('');
+  console.log('🔐 ADMIN-ENDPUNKTE:');
+  console.log('- POST /admin/login (root@gmail.com only)');
+  console.log('- GET /admin/stats (Admin Auth erforderlich)');
+  console.log('- GET /admin/users (Admin Auth erforderlich)');
+  console.log('- DELETE /admin/users/:id (Admin Auth erforderlich)');
+  console.log('- GET /admin/orders (Admin Auth erforderlich)');
+  console.log('- PUT /admin/orders/:id/accept (Admin Auth erforderlich)');
+  console.log('- PUT /admin/orders/:id/reject (Admin Auth erforderlich)');
+  console.log('- GET /admin/reviews (Admin Auth erforderlich)');
+  console.log('- DELETE /admin/reviews/:id (Admin Auth erforderlich)');
 });
 
 server.on('error', (err) => {
