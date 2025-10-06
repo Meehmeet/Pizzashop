@@ -844,6 +844,73 @@ app.get('/admin/users', (req, res) => {
   });
 });
 
+// Admin: Update user (username/email)
+app.put('/admin/users/:userId', (req, res) => {
+  const userId = parseInt(req.params.userId);
+  const { username, email } = req.body;
+  
+  if (!username || !email || username.trim().length === 0 || email.trim().length === 0) {
+    return res.status(STATUS_CODES.BAD_REQUEST).json(
+      formatErrorResponse('Benutzername und E-Mail sind erforderlich', ERROR_CODES.MISSING_FIELDS, STATUS_CODES.BAD_REQUEST)
+    );
+  }
+  
+  // Validiere E-Mail Format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(STATUS_CODES.BAD_REQUEST).json(
+      formatErrorResponse('Ungültiges E-Mail Format', ERROR_CODES.INVALID_EMAIL, STATUS_CODES.BAD_REQUEST)
+    );
+  }
+  
+  // Prüfe ob Benutzer existiert
+  const checkQuery = 'SELECT email FROM users WHERE id = ?';
+  db.query(checkQuery, [userId], (err, results) => {
+    if (err || results.length === 0) {
+      return res.status(STATUS_CODES.NOT_FOUND).json(
+        formatErrorResponse('Benutzer nicht gefunden', ERROR_CODES.NOT_FOUND, STATUS_CODES.NOT_FOUND)
+      );
+    }
+    
+    // Verhindere Änderung des Admin-Accounts
+    if (results[0].email === 'root@gmail.com') {
+      return res.status(STATUS_CODES.FORBIDDEN).json(
+        formatErrorResponse('Admin-Account kann nicht bearbeitet werden', ERROR_CODES.FORBIDDEN, STATUS_CODES.FORBIDDEN)
+      );
+    }
+    
+    // Prüfe ob neue E-Mail bereits existiert (außer bei gleichem Benutzer)
+    const emailCheckQuery = 'SELECT id FROM users WHERE email = ? AND id != ?';
+    db.query(emailCheckQuery, [email, userId], (err, emailResults) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+          formatErrorResponse('Datenbankfehler', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+        );
+      }
+      
+      if (emailResults.length > 0) {
+        return res.status(STATUS_CODES.CONFLICT).json(
+          formatErrorResponse('E-Mail bereits vergeben', ERROR_CODES.EMAIL_EXISTS, STATUS_CODES.CONFLICT)
+        );
+      }
+      
+      // Update Benutzer
+      const updateQuery = 'UPDATE users SET username = ?, email = ? WHERE id = ?';
+      db.query(updateQuery, [username.trim(), email.trim(), userId], (err, result) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
+            formatErrorResponse('Fehler beim Aktualisieren des Benutzers', ERROR_CODES.DATABASE_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
+          );
+        }
+        
+        res.json(formatSuccessResponse(null, 'Benutzer erfolgreich aktualisiert'));
+      });
+    });
+  });
+});
+
 // Admin: Delete user
 app.delete('/admin/users/:userId', (req, res) => {
   const userId = parseInt(req.params.userId);
@@ -1039,6 +1106,7 @@ const server = app.listen(PORT, () => {
   console.log('- POST /admin/login (root@gmail.com only)');
   console.log('- GET /admin/stats (Admin Auth erforderlich)');
   console.log('- GET /admin/users (Admin Auth erforderlich)');
+  console.log('- PUT /admin/users/:id (Admin Auth erforderlich)');
   console.log('- DELETE /admin/users/:id (Admin Auth erforderlich)');
   console.log('- GET /admin/orders (Admin Auth erforderlich)');
   console.log('- PUT /admin/orders/:id/accept (Admin Auth erforderlich)');

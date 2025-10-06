@@ -29,6 +29,15 @@ class AdminApiService {
     return await response.json();
   }
 
+  async updateUser(userId, username, email) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ username, email })
+    });
+    return await response.json();
+  }
+
   async deleteUser(userId, reason) {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
       method: 'DELETE',
