@@ -7,6 +7,9 @@ const UserManagement = ({ addPopup }) => {
   const [error, setError] = useState('');
   const [deleteModal, setDeleteModal] = useState({ show: false, user: null });
   const [deleteReason, setDeleteReason] = useState('');
+  const [editModal, setEditModal] = useState({ show: false, user: null });
+  const [editUsername, setEditUsername] = useState('');
+  const [editEmail, setEditEmail] = useState('');
 
   useEffect(() => {
     loadUsers();
@@ -26,6 +29,36 @@ const UserManagement = ({ addPopup }) => {
       setError('Verbindungsfehler beim Laden der Benutzer');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditUser = async () => {
+    if (!editModal.user || !editUsername.trim() || !editEmail.trim()) {
+      addPopup('Bitte füllen Sie alle Felder aus.', 'warning');
+      return;
+    }
+
+    // E-Mail Validierung
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editEmail)) {
+      addPopup('Bitte geben Sie eine gültige E-Mail-Adresse ein.', 'warning');
+      return;
+    }
+
+    try {
+      const result = await adminApiService.updateUser(editModal.user.id, editUsername, editEmail);
+      
+      if (result.success) {
+        addPopup('Benutzer erfolgreich aktualisiert! ✏️', 'success');
+        setEditModal({ show: false, user: null });
+        setEditUsername('');
+        setEditEmail('');
+        loadUsers(); // Neulade der Liste
+      } else {
+        addPopup(result.message || 'Fehler beim Aktualisieren des Benutzers', 'error');
+      }
+    } catch (err) {
+      addPopup('Verbindungsfehler beim Aktualisieren des Benutzers', 'error');
     }
   };
 
@@ -123,12 +156,24 @@ const UserManagement = ({ addPopup }) => {
                   </td>
                   <td>
                     {user.role !== 'admin' && user.is_active && (
-                      <button 
-                        className="action-btn btn-delete"
-                        onClick={() => setDeleteModal({ show: true, user })}
-                      >
-                        Löschen
-                      </button>
+                      <>
+                        <button 
+                          className="action-btn btn-accept"
+                          onClick={() => {
+                            setEditModal({ show: true, user });
+                            setEditUsername(user.username);
+                            setEditEmail(user.email);
+                          }}
+                        >
+                          ✏️ Bearbeiten
+                        </button>
+                        <button 
+                          className="action-btn btn-delete"
+                          onClick={() => setDeleteModal({ show: true, user })}
+                        >
+                          🗑️ Löschen
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -174,6 +219,62 @@ const UserManagement = ({ addPopup }) => {
                 disabled={!deleteReason.trim()}
               >
                 Benutzer löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editModal.show && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 className="modal-title">Benutzer bearbeiten</h3>
+            <p>
+              Bearbeiten Sie die Daten für <strong>{editModal.user?.username}</strong>:
+            </p>
+            
+            <div className="form-group">
+              <label className="form-label">Benutzername:</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editUsername}
+                onChange={(e) => setEditUsername(e.target.value)}
+                placeholder="Neuer Benutzername"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">E-Mail:</label>
+              <input
+                type="email"
+                className="form-input"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="Neue E-Mail-Adresse"
+                required
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="btn-secondary"
+                onClick={() => {
+                  setEditModal({ show: false, user: null });
+                  setEditUsername('');
+                  setEditEmail('');
+                }}
+              >
+                Abbrechen
+              </button>
+              <button 
+                className="btn-accept"
+                onClick={handleEditUser}
+                disabled={!editUsername.trim() || !editEmail.trim()}
+              >
+                Speichern
               </button>
             </div>
           </div>

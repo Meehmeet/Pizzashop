@@ -260,6 +260,35 @@ body {
   min-height: 100px;
 }
 
+
+.form-input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #1e3c72;
+  box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
+}
+
+.form-input:invalid {
+  border-color: #dc3545;
+}
+
+.action-btn {
+  margin-right: 8px;
+}
+
+.action-btn:last-child {
+  margin-right: 0;
+}
+
+
 .modal-actions {
   display: flex;
   gap: 10px;
