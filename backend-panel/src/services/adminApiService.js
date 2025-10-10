@@ -1,7 +1,8 @@
 // ===== ADMIN API SERVICE =====
 // Kommunikation mit dem Backend für Admin-Funktionen
 
-const API_BASE_URL = 'http://localhost:3001';
+// Hinter Nginx sind die Admin-Routen unter /admin verfügbar
+const API_BASE_URL = '/admin';
 
 class AdminApiService {
 

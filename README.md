@@ -1,3 +1,28 @@
+## Deployment mit Docker (Schulserver)
+
+1) Erstelle im Projektroot eine Datei `.env` mit folgendem Inhalt:
+
+```
+JWT_SECRET=change_me_super_secret_jwt
+DB_ROOT_PASSWORD=change_me_root
+DB_NAME=pizzashop
+DB_USER=pizza_user
+DB_PASSWORD=change_me_user
+```
+
+2) Starte die Container:
+
+```
+docker compose up -d --build
+```
+
+3) Aufruf im Browser:
+
+- App (Kunden-Frontend): http://<SERVER_IP>/
+- Admin-Panel: http://<SERVER_IP>/admin/
+
+Die API ist über `/api` (Kunden) und `/admin` (Admin-Endpunkte) erreichbar und wird durch Nginx an das Node-Backend weitergeleitet.
+
 # 🍕 Pizzashop - E-Commerce Web-App
 
 Eine vollständige Pizza-Bestellungs-App mit React Frontend und Node.js Backend.
