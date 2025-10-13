@@ -1,37 +1,46 @@
-// ===== PIZZASHOP BACKEND SERVER =====
-//root@gmail.com, root1234!
-// Hauptserver für die Pizzashop-Anwendung
-// Behandelt: Authentifizierung, Bestellungen, Pizzas, Bewertungen
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║                     PIZZASHOP BACKEND SERVER                              ║
+// ║                                                                           ║
+// ║  Admin Credentials: root@gmail.com / root1234!                           ║
+// ║                                                                           ║
+// ║  Funktionen:                                                              ║
+// ║  • Benutzer-Authentifizierung (JWT)                                      ║
+// ║  • Bestellverwaltung                                                      ║
+// ║  • Pizza-Katalog                                                          ║
+// ║  • Bewertungssystem                                                       ║
+// ║  • Admin-Panel Backend                                                    ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
 
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
-const bcrypt = require('bcrypt');         // Passwort-Hashing für Sicherheit
-const jwt = require('jsonwebtoken');      // JSON Web Tokens für Authentifizierung
-const rateLimit = require('express-rate-limit'); // Schutz vor Brute-Force
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { 
   STATUS_CODES, 
   ERROR_CODES, 
-  validateRegistration,    // Backend-Sicherheits-Validierung
-  validateLogin,          // Backend-Sicherheits-Validierung
-  formatErrorResponse,    // Einheitliche Fehler-Antworten
-  formatSuccessResponse   // Einheitliche Erfolgs-Antworten
+  validateRegistration,
+  validateLogin,
+  formatErrorResponse,
+  formatSuccessResponse
 } = require('./validation');
-require('dotenv').config(); // Umgebungsvariablen laden
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// JWT Secret (sollte in .env stehen)
 const JWT_SECRET = process.env.JWT_SECRET || 'dein-super-geheimer-schluessel-hier';
 
-// ===== SICHERHEITSKONFIGURATION =====
+// ═══════════════════════════════════════════════════════════════════════════
+// SICHERHEITSKONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════
+
 // Rate Limiting: Schutz vor Brute-Force-Angriffen
 const loginLimiter = rateLimit({
-  windowMs: 30 * 1000, // 30 Sekunden Zeitfenster
-  max: 5, // Maximum 5 Login-Versuche pro 30 Sekunden
+  windowMs: 30 * 1000,
+  max: 5,
   message: formatErrorResponse(
-    'Zu viele Login-Versuche. Bitte warte 30 Sekunden und versuche es erneut.',
+    'Zu viele Login-Versuche. Bitte warte 30 Sekunden.',
     ERROR_CODES.TOO_MANY_REQUESTS
   ),
   standardHeaders: true,
@@ -43,11 +52,17 @@ const loginLimiter = rateLimit({
 app.use(cors());
 app.use(express.json());
 
-// ===== AUTHENTIFIZIERUNGS-MIDDLEWARE =====
-// Schützt Routen vor unbefugtem Zugriff (Bestellungen, etc.)
+// ═══════════════════════════════════════════════════════════════════════════
+// MIDDLEWARE: AUTHENTIFIZIERUNG
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * JWT Token Authentifizierung
+ * Schützt private Routen vor unbefugtem Zugriff
+ */
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Extrahiert Token aus "Bearer TOKEN"
+  const token = authHeader && authHeader.split(' ')[1];
   
   if (!token) {
     return res.status(STATUS_CODES.UNAUTHORIZED).json(
@@ -69,7 +84,13 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Datenbank-Verbindung
+// ═══════════════════════════════════════════════════════════════════════════
+// DATENBANK-KONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// DATENBANK-KONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════
+
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
@@ -80,25 +101,31 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
-    console.error('Error connecting to MySQL:', err);
+    console.error('❌ MySQL Verbindungsfehler:', err);
     return;
   }
-  console.log('Connected to MySQL database');
-  console.log('Using existing database tables');
   
-  // Prüfe die vorhandenen Tabellen
+  console.log('✅ MySQL Datenbank verbunden');
+  console.log('📊 Verwende existierende Datenbank-Tabellen');
+  
   db.query('SHOW TABLES', (err, results) => {
     if (err) {
-      console.error('Error checking tables:', err);
+      console.error('❌ Fehler beim Prüfen der Tabellen:', err);
     } else {
-      console.log('Available tables:', results.map(row => Object.values(row)[0]));
+      const tables = results.map(row => Object.values(row)[0]);
+      console.log('📋 Verfügbare Tabellen:', tables.join(', '));
     }
   });
 });
 
-// ================= AUTHENTICATION ROUTES =================
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUTES: AUTHENTIFIZIERUNG
+// ═══════════════════════════════════════════════════════════════════════════
 
-// Registrierung
+/**
+ * POST /api/register
+ * Registriert einen neuen Benutzer
+ */
 app.post('/api/register', async (req, res) => {
   const { username, email, password } = req.body;
   
@@ -150,22 +177,27 @@ app.post('/api/register', async (req, res) => {
           );
         }
         
-        res.status(STATUS_CODES.CREATED).json(formatSuccessResponse({
-          id: results.insertId,
-          username: username,
-          email: email
-        }, 'Konto erfolgreich erstellt'));
+        res.status(STATUS_CODES.CREATED).json(
+          formatSuccessResponse({
+            id: results.insertId,
+            username: username,
+            email: email
+          }, 'Konto erfolgreich erstellt')
+        );
       });
     });
   } catch (error) {
-    console.error('Password hashing error:', error);
+    console.error('❌ Passwort-Hashing Fehler:', error);
     return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json(
       formatErrorResponse('Fehler beim Verarbeiten des Passworts', ERROR_CODES.INTERNAL_ERROR, STATUS_CODES.INTERNAL_SERVER_ERROR)
     );
   }
 });
 
-// Login
+/**
+ * POST /api/login
+ * Benutzer-Anmeldung mit Rate Limiting
+ */
 app.post('/api/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   
@@ -234,9 +266,14 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   }
 });
 
-// ================= PUBLIC ROUTES =================
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUTES: ÖFFENTLICH (Keine Authentifizierung erforderlich)
+// ═══════════════════════════════════════════════════════════════════════════
 
-// Get all pizzas (Öffentlich)
+/**
+ * GET /api/pizzas
+ * Gibt alle verfügbaren Pizzas zurück
+ */
 app.get('/api/pizzas', (req, res) => {
   const query = 'SELECT * FROM pizzas';
   
@@ -253,18 +290,20 @@ app.get('/api/pizzas', (req, res) => {
       id: pizza.id,
       name: pizza.name,
       description: pizza.description,
-      base_price: parseFloat(pizza.base_price), // Frontend erwartet base_price
-      preis: parseFloat(pizza.base_price), // Auch preis für Kompatibilität
-      image: mapPizzaImage(pizza.name), // Mapping zu lokalen Bildern
+      base_price: parseFloat(pizza.base_price),
+      preis: parseFloat(pizza.base_price),
+      image: mapPizzaImage(pizza.name),
       ingredients: pizza.description ? [pizza.description] : []
     }));
     
-    // Direkte Antwort für Kompatibilität mit PizzaMenu
     res.json(pizzas);
   });
 });
 
-// Hilfsfunktion für Bild-Mapping
+/**
+ * Hilfsfunktion: Pizza-Bild Mapping
+ * Mappt Pizzanamen zu lokalen Bilddateien
+ */
 function mapPizzaImage(pizzaName) {
   const name = pizzaName.toLowerCase();
   if (name.includes('margherita')) return 'pizza_magherita.png';
@@ -275,7 +314,10 @@ function mapPizzaImage(pizzaName) {
   return 'pizza_custom.png';
 }
 
-// Get all ingredients (Öffentlich)
+/**
+ * GET /api/ingredients
+ * Gibt alle verfügbaren Zutaten zurück
+ */
 app.get('/api/ingredients', (req, res) => {
   const query = 'SELECT * FROM ingredients';
   
@@ -287,16 +329,14 @@ app.get('/api/ingredients', (req, res) => {
       );
     }
     
-    // Korrekte Transformation basierend auf deiner Datenbankstruktur
     const ingredients = results.map(ingredient => ({
       id: ingredient.id,
       name: ingredient.name,
-      price: parseFloat(ingredient.price), // Frontend erwartet price
-      preis: parseFloat(ingredient.price), // Auch preis für Kompatibilität
-      category: ingredient.category // Für Custom Pizza Kategorien
+      price: parseFloat(ingredient.price),
+      preis: parseFloat(ingredient.price),
+      category: ingredient.category
     }));
     
-    // Direkte Antwort für Kompatibilität
     res.json(ingredients);
   });
 });
@@ -323,9 +363,14 @@ app.get('/api/reviews', (req, res) => {
   });
 });
 
-// ================= PROTECTED ROUTES =================
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUTES: GESCHÜTZT (JWT Authentifizierung erforderlich)
+// ═══════════════════════════════════════════════════════════════════════════
 
-// Create order (Geschützt)
+/**
+ * POST /api/orders
+ * Erstellt eine neue Bestellung
+ */
 app.post('/api/orders', authenticateToken, (req, res) => {
   const { items, deliveryAddress, totalPrice } = req.body;
   const benutzerId = req.user.userId;
@@ -797,7 +842,14 @@ app.post('/admin/login', loginLimiter, async (req, res) => {
   });
 });
 
-// Admin Dashboard Statistics
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUTES: ADMIN PANEL (Keine Token-Prüfung für Entwicklung)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /admin/stats
+ * Dashboard-Statistiken für Admin-Panel
+ */
 app.get('/admin/stats', (req, res) => {
   // Komplexe Statistik-Abfrage
   const statsQuery = `
@@ -1089,78 +1141,99 @@ app.delete('/admin/reviews/:reviewId', (req, res) => {
   });
 });
 
-// Server starten
+// ═══════════════════════════════════════════════════════════════════════════
+// SERVER START
+// ═══════════════════════════════════════════════════════════════════════════
+
 const server = app.listen(PORT, () => {
-  console.log(`Server läuft auf Port ${PORT}`);
-  console.log(`Backend ist bereit und lauscht auf http://localhost:${PORT}`);
-  console.log('API-Endpunkte verfügbar:');
-  console.log('- POST /api/register');
-  console.log('- POST /api/login');
-  console.log('- GET /api/pizzas');
-  console.log('- GET /api/ingredients');
-  console.log('- POST /api/orders (Auth erforderlich)');
-  console.log('- GET /api/orders (Auth erforderlich)');
-  console.log('- POST /api/reviews (Auth erforderlich)');
-  console.log('');
-  console.log('🔐 ADMIN-ENDPUNKTE:');
-  console.log('- POST /admin/login (root@gmail.com only)');
-  console.log('- GET /admin/stats (Admin Auth erforderlich)');
-  console.log('- GET /admin/users (Admin Auth erforderlich)');
-  console.log('- PUT /admin/users/:id (Admin Auth erforderlich)');
-  console.log('- DELETE /admin/users/:id (Admin Auth erforderlich)');
-  console.log('- GET /admin/orders (Admin Auth erforderlich)');
-  console.log('- PUT /admin/orders/:id/accept (Admin Auth erforderlich)');
-  console.log('- PUT /admin/orders/:id/reject (Admin Auth erforderlich)');
-  console.log('- GET /admin/reviews (Admin Auth erforderlich)');
-  console.log('- DELETE /admin/reviews/:id (Admin Auth erforderlich)');
+  console.log('\n╔═══════════════════════════════════════════════════════════════╗');
+  console.log('║         🍕 PIZZASHOP BACKEND SERVER GESTARTET 🍕          ║');
+  console.log('╚═══════════════════════════════════════════════════════════════╝\n');
+  console.log(`🚀 Server läuft auf: http://localhost:${PORT}`);
+  console.log(`⏰ Gestartet am: ${new Date().toLocaleString('de-DE')}\n`);
+  
+  console.log('📡 VERFÜGBARE API-ENDPUNKTE:\n');
+  
+  console.log('🔓 ÖFFENTLICH:');
+  console.log('   • POST   /api/register          - Neues Konto erstellen');
+  console.log('   • POST   /api/login             - Anmelden');
+  console.log('   • GET    /api/pizzas            - Alle Pizzas');
+  console.log('   • GET    /api/ingredients       - Alle Zutaten\n');
+  
+  console.log('🔒 GESCHÜTZT (JWT erforderlich):');
+  console.log('   • POST   /api/orders            - Bestellung aufgeben');
+  console.log('   • GET    /api/orders            - Eigene Bestellungen');
+  console.log('   • POST   /api/reviews           - Bewertung abgeben\n');
+  
+  console.log('� ADMIN-PANEL (root@gmail.com):');
+  console.log('   • GET    /admin/stats           - Dashboard-Statistiken');
+  console.log('   • GET    /admin/users           - Alle Benutzer');
+  console.log('   • PUT    /admin/users/:id       - Benutzer bearbeiten');
+  console.log('   • DELETE /admin/users/:id       - Benutzer löschen');
+  console.log('   • GET    /admin/orders          - Alle Bestellungen');
+  console.log('   • PUT    /admin/orders/:id/accept - Bestellung akzeptieren');
+  console.log('   • PUT    /admin/orders/:id/reject - Bestellung ablehnen');
+  console.log('   • GET    /admin/reviews         - Alle Bewertungen');
+  console.log('   • DELETE /admin/reviews/:id     - Bewertung löschen\n');
+  
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('✨ Server bereit für Anfragen!\n');
 });
 
 server.on('error', (err) => {
-  console.error('Server-Fehler:', err);
+  console.error('\n❌ SERVER-FEHLER:', err.message);
   if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} wird bereits verwendet!`);
+    console.error(`   Port ${PORT} wird bereits verwendet!`);
+    console.error('   Lösung: Stoppe den anderen Prozess oder wähle einen anderen Port.\n');
   }
 });
 
-/* ===== ARCHITEKTUR-DOKUMENTATION =====
+// ═══════════════════════════════════════════════════════════════════════════
+// 📚 ARCHITEKTUR-DOKUMENTATION
+// ═══════════════════════════════════════════════════════════════════════════
 
-🏗️ WARUM FRONTEND + BACKEND VALIDIERUNG?
-
-1. FRONTEND-VALIDIERUNG (pizzashop/src/utils/validation.js):
-   ✅ Zweck: Sofortiges User-Feedback OHNE Server-Anfrage
-   ✅ Verwendet in: LoginForm.jsx, RegisterForm.jsx
-   ✅ Vorteil: User bekommt sofort rote Fehlermeldung beim Tippen
-   
-2. BACKEND-VALIDIERUNG (server/validation.js):
-   ✅ Zweck: SICHERHEIT - Finale Prüfung vor Datenbankzugriff
-   ✅ Verwendet in: server/index.js bei allen API-Endpunkten
-   ✅ Vorteil: Schutz vor Manipulation durch Tools/Hacker
-
-📚 BEISPIEL-ABLAUF REGISTRIERUNG:
-1. User tippt "ab" als Username
-2. Frontend-Validierung: SOFORT "mind. 3 Zeichen" (ohne Server)
-3. User korrigiert zu "admin123"
-4. User klickt "Registrieren"
-5. Frontend-Validierung: ✅ OK
-6. Server-Anfrage wird gesendet
-7. Backend-Validierung: NOCHMAL alle Kriterien prüfen
-8. Falls OK: Passwort hashen + in Datenbank speichern
-
-🔐 SICHERHEITSFEATURES:
-- JWT Tokens (1h Laufzeit)
-- Bcrypt Passwort-Hashing (10 Salt Rounds)
-- Rate Limiting (5 Versuche/30s)
-- CORS aktiviert
-- Alle Eingaben validiert
-
-📊 DATENBANK-STRUKTUR:
-- orders: Hauptbestellung (user_id, total_price, status, delivery_address)
-- order_items: Bestellpositionen (order_id, custom_ingredients, quantity, item_price)
-- users: Benutzer (id, username, email, password_hash)
-- pizzas: Verfügbare Pizzen (id, name, base_price, description)
-- ingredients: Zutaten für Custom Pizzas (id, name, price)
-
-🎯 DAS IST PROFESSIONELLE WEB-ENTWICKLUNG!
-Genau so machen es Netflix, Amazon, Google - Frontend UX + Backend Sicherheit
-
-============================================= */
+/**
+ * SICHERHEITSARCHITEKTUR: DUAL-VALIDIERUNG
+ * 
+ * Warum Frontend UND Backend Validierung?
+ * 
+ * 1️⃣ FRONTEND-VALIDIERUNG (pizzashop/src/utils/validation.js)
+ *    ✨ Zweck: Sofortiges User-Feedback ohne Server-Anfrage
+ *    📍 Verwendet in: LoginForm.jsx, RegisterForm.jsx
+ *    ✅ Vorteil: Instant-Feedback beim Tippen
+ * 
+ * 2️⃣ BACKEND-VALIDIERUNG (server/validation.js)
+ *    🔒 Zweck: Sicherheit - Finale Prüfung vor Datenbankzugriff
+ *    📍 Verwendet in: Alle API-Endpunkte
+ *    ✅ Vorteil: Schutz vor Manipulation
+ * 
+ * BEISPIEL-ABLAUF (Registrierung):
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │ 1. User tippt "ab" als Username                             │
+ * │ 2. Frontend: ❌ SOFORT "mind. 3 Zeichen"                    │
+ * │ 3. User korrigiert zu "admin123"                            │
+ * │ 4. Frontend: ✅ OK → Button aktiviert                       │
+ * │ 5. User klickt "Registrieren"                               │
+ * │ 6. Backend: Nochmal alle Kriterien prüfen                   │
+ * │ 7. Backend: ✅ OK → Passwort hashen → DB speichern          │
+ * └─────────────────────────────────────────────────────────────┘
+ * 
+ * SICHERHEITSFEATURES:
+ * • JWT Tokens (1h Laufzeit)
+ * • Bcrypt Passwort-Hashing (10 Salt Rounds)
+ * • Rate Limiting (5 Versuche/30s)
+ * • CORS aktiviert
+ * • Input-Validierung (Frontend + Backend)
+ * 
+ * DATENBANK-STRUKTUR:
+ * • users         - Benutzerkonten
+ * • pizzas        - Verfügbare Pizzas
+ * • ingredients   - Zutaten für Custom Pizzas
+ * • orders        - Bestellungen (Haupttabelle)
+ * • order_items   - Bestellpositionen (Details)
+ * • reviews       - Kundenbewertungen
+ * 
+ * 🎯 PROFESSIONELLE WEB-ENTWICKLUNG
+ * Diese Architektur nutzen auch: Netflix, Amazon, Google
+ * Frontend UX + Backend Sicherheit = Best Practice
+ */
