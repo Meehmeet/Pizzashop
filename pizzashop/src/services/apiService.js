@@ -1,7 +1,8 @@
 // API Utility für JWT Token Management
 class ApiService {
   constructor() {
-    this.baseURL = 'http://localhost:3001/api';
+    // Hinter Nginx läuft die API unter /api
+    this.baseURL = '/api';
   }
 
   // Token aus localStorage holen
@@ -13,7 +14,7 @@ class ApiService {
   // API-Call mit automatischem Token-Header
   async request(endpoint, options = {}) {
     const token = this.getToken();
-    
+
     const config = {
       headers: {
         'Content-Type': 'application/json',

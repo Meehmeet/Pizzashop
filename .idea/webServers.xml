@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="282763f6-61ae-416d-a51d-6d57abedd512" name="lukas@labor2019">
+        <fileTransfer rootFolder="/home/lukas" accessType="SFTP" host="Labor2019x" port="22" sshConfigId="ae7baf4b-491b-44df-bd77-8dfcfd8ba733" sshConfig="lukas@Labor2019x:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

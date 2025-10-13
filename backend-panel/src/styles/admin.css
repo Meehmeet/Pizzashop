@@ -260,6 +260,7 @@ body {
   min-height: 100px;
 }
 
+
 .form-input {
   width: 100%;
   padding: 12px 15px;
@@ -286,6 +287,7 @@ body {
 .action-btn:last-child {
   margin-right: 0;
 }
+
 
 .modal-actions {
   display: flex;
