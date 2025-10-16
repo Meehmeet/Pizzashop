@@ -1,8 +1,13 @@
-// API Utility für JWT Token Management
+// ═══════════════════════════════════════════════════════════════════════════
+// API SERVICE
+// ═══════════════════════════════════════════════════════════════════════════
+// Kommunikation mit dem Backend für Kunden-Frontend
+// JWT Token Management für authentifizierte Anfragen
+
 class ApiService {
   constructor() {
-    // Hinter Nginx läuft die API unter /api
-    this.baseURL = '/api';
+    // Direkte Verbindung zum Node.js Backend (Port 3001)
+    this.baseURL = 'http://localhost:3001/api';
   }
 
   // Token aus localStorage holen
