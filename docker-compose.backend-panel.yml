@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  backend-panel:
+    build:
+      context: ./backend-panel
+      dockerfile: Dockerfile
+    container_name: pizzashop-backend-panel
+    ports:
+      - 8083:4000
+    environment:
+      NODE_ENV: development
+    restart: unless-stopped

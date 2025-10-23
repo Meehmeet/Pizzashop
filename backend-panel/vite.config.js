@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5174 // Anderer Port als das normale Frontend
+    port: 8083 // Anderer Port als das normale Frontend
   },
   base: '/admin/'
 })

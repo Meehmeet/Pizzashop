@@ -6,8 +6,10 @@
 
 class ApiService {
   constructor() {
-    // Direkte Verbindung zum Node.js Backend (Port 3001)
-    this.baseURL = 'http://localhost:3001/api';
+    // Basis-URL über Umgebungsvariable steuerbar (Vite: VITE_API_BASE_URL)
+    // Fallback: produktive Server-IP 10.115.2.19:8081
+    const envBase = import.meta?.env?.VITE_API_BASE_URL;
+    this.baseURL = envBase || 'http://10.115.2.19:8081/api';
   }
 
   // Token aus localStorage holen

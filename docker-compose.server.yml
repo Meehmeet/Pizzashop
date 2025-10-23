@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: pizzashop-server
+    environment:
+      - PORT=8081
+      - FRONTEND_ORIGIN=*
+      - DB_HOST=10.115.2.18
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=12345678
+      - DB_NAME=pizzashop
+      - JWT_SECRET=super-secret
+    ports:
+      - 8081:8081
+    restart: unless-stopped

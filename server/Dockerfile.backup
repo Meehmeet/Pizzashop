@@ -1,0 +1,48 @@
+# ---------- Frontend-builder ----------
+FROM node:20-slim AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+
+# Copy frontend package files and install dependencies
+COPY pizzashop/package*.json ./pizzashop/
+WORKDIR /app/pizzashop
+RUN npm ci
+
+# Copy frontend source code
+COPY pizzashop/ .
+
+# Fix permission for node_modules binaries
+RUN chmod +x ./node_modules/.bin/*
+
+# Build frontend using npx
+RUN npx vite build
+
+# ---------- Backend / final image ----------
+FROM node:20-slim AS stage-1
+
+# Set working directory
+WORKDIR /app
+
+# Install backend dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends nginx supervisor curl && rm -rf /var/lib/apt/lists/*
+
+# Copy backend package files and install dependencies
+COPY server/package*.json ./server/
+WORKDIR /app/server
+RUN npm ci
+
+# Copy backend source code
+COPY server/ .
+
+# Copy built frontend from builder stage
+COPY --from=builder /app/pizzashop/dist /app/server/public
+
+# Expose backend port
+EXPOSE 3001
+
+# Start the backend
+CMD ["node", "index.js"]

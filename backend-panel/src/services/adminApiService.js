@@ -11,7 +11,7 @@
  * Hinweis: Keine Token-Authentifizierung im Entwicklungsmodus
  */
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = 'http://10.115.2.19:8081';
 
 class AdminApiService {
 

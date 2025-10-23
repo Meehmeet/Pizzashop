@@ -43,7 +43,7 @@ cd server
 npm install
 npm start
 ```
-→ Backend läuft auf: `http://localhost:3001`
+→ Backend läuft auf: `http://localhost:8081`
 
 ### 3. Datenbank einrichten (MySQL)
 - MySQL Server installieren und starten
