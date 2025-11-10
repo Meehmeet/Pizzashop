@@ -44,7 +44,7 @@ const LoginForm = ({ addPopup }) => {
         addPopup('Admin erfolgreich angemeldet! 🔐', 'success');
         // Öffne Admin-Panel und schließe normales Frontend
         setTimeout(() => {
-          window.open('http://localhost:5174', '_blank');
+          window.open('http://10.115.2.19:8083', '_blank');
           window.close(); // Schließe das normale Frontend
         }, 1000);
         return;
